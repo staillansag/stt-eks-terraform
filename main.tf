@@ -18,12 +18,10 @@ data "aws_eks_cluster_auth" "cluster" {
   name = module.eks.cluster_name
 }
 
-# Utiliser un VPC existant
 data "aws_vpc" "existing_vpc" {
   id = var.vpc_id
 }
 
-# Obtenir les zones de disponibilité disponibles
 data "aws_availability_zones" "available" {
   filter {
     name   = "opt-in-status"
@@ -31,7 +29,6 @@ data "aws_availability_zones" "available" {
   }
 }
 
-# Générer un nom unique pour le cluster
 resource "random_string" "suffix" {
   length  = 8
   special = false
@@ -74,7 +71,7 @@ module "eks" {
   version = "20.8.5"
 
   cluster_name    = local.cluster_name
-  cluster_version = "1.29"
+  cluster_version = var.cluster_version
 
   cluster_endpoint_public_access           = true
   enable_cluster_creator_admin_permissions = true
@@ -89,18 +86,17 @@ module "eks" {
   }
 
   vpc_id     = data.aws_vpc.existing_vpc.id
-  # Only use public subnets if public IPs are needed
   subnet_ids = aws_subnet.public_subnets[*].id
 
   eks_managed_node_group_defaults = {
-    ami_type = "AL2_x86_64"
+    ami_type = var.ami_type
   }
 
   eks_managed_node_groups = {
     one = {
       name = "node-group-1"
 
-      instance_types = ["t3.small"]
+      instance_types = [var.instance_type]
 
       min_size     = 1
       max_size     = 3
@@ -110,10 +106,10 @@ module "eks" {
     two = {
       name = "node-group-2"
 
-      instance_types = ["t3.small"]
+      instance_types = [var.instance_type]
 
       min_size     = 1
-      max_size     = 2
+      max_size     = 3
       desired_size = 1
     }
   }
@@ -168,13 +164,10 @@ resource "helm_release" "nginx_ingress" {
   depends_on = [module.eks]
 }
 
-
-# IAM Policy pour EBS CSI Driver
 data "aws_iam_policy" "ebs_csi_policy" {
   arn = "arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy"
 }
 
-# IAM Policy Custom pour S3 Access
 resource "aws_iam_policy" "custom_s3_policy" {
   name        = "CustomS3AccessPolicy-${local.cluster_name}"
   description = "Custom S3 access policy for EKS IRSA"
@@ -208,7 +201,6 @@ resource "aws_iam_policy" "custom_s3_policy" {
   })
 }
 
-# IRSA pour EBS CSI
 module "irsa-ebs-csi" {
   source  = "terraform-aws-modules/iam/aws//modules/iam-assumable-role-with-oidc"
   version = "5.39.0"
@@ -220,7 +212,6 @@ module "irsa-ebs-csi" {
   oidc_fully_qualified_subjects = ["system:serviceaccount:kube-system:ebs-csi-controller-sa"]
 }
 
-# IRSA pour Mountpoint S3 CSI
 module "irsa-s3-csi" {
   source  = "terraform-aws-modules/iam/aws//modules/iam-assumable-role-with-oidc"
   version = "5.39.0"
@@ -232,7 +223,6 @@ module "irsa-s3-csi" {
   oidc_fully_qualified_subjects = ["system:serviceaccount:kube-system:s3-csi-driver-sa"]
 }
 
-# Autoriser le trafic depuis le SG des nodes EKS vers RDS
 resource "aws_security_group_rule" "allow_eks_nodes_to_sg" {
   type              = "ingress"
   from_port         = var.rds_allowed_port

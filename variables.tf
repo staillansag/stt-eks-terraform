@@ -7,6 +7,24 @@ variable "region" {
   default     = "eu-central-1"
 }
 
+variable "cluster_version" {
+  description = "Kubernetes version"
+  type        = string
+  default     = "1.30"
+}
+
+variable "ami_type" {
+  description = "Node ami type"
+  type        = string
+  default     = "AL2_x86_64"
+}
+
+variable "instance_type" {
+  description = "Node instance type"
+  type        = string
+  default     = "t3.small"
+}
+
 variable "bucket_name" {
   description = "The name of the S3 bucket to use."
   type        = string
