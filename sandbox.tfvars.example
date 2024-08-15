@@ -1,0 +1,16 @@
+region      = "eu-central-1"
+bucket_name = "stt-s3-eu"
+vpc_id      = "vpc-06762f01c5db15d41"   
+private_subnet_cidrs = [
+  "172.31.149.0/24",
+  "172.31.150.0/24",
+  "172.31.151.0/24"
+]
+
+public_subnet_cidrs = [
+  "172.31.152.0/24",
+  "172.31.153.0/24",
+  "172.31.154.0/24"
+]
+rds_security_group_id = "sg-0d965d8def2157b3d"
+rds_allowed_port      = "3306"
